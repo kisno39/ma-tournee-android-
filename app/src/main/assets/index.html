@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ma Tournée</title>
+<meta name="theme-color" content="#1E1B18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ma Tournée">
+<link rel="apple-touch-icon" id="apple-touch-icon">
+<link rel="icon" id="favicon-icon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg: #1E1B18;
+    --bg-card: #29241F;
+    --bg-raised: #322C25;
+    --line: #3E362C;
+    --accent: #C8892B;
+    --accent-dark: #9C6A1F;
+    --accent-soft: rgba(200,137,43,0.15);
+    --steel: #6E8B9A;
+    --text: #EDE8DE;
+    --text-muted: #9C9488;
+    --danger: #A34A3A;
+    --radius: 5px;
+  }
+  * { box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+  #app{
+    display:flex; flex-direction:column;
+    height:100vh; max-width:520px; margin:0 auto;
+    overflow:hidden;
+  }
+  header{
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink:0;
+  }
+  header h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 1.5rem;
+    margin:0;
+    letter-spacing: 0.3px;
+  }
+  header h1 span{ color: var(--accent); }
+  header p{
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  #location-banner{
+    flex-shrink:0;
+    background: var(--accent-soft);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 18px;
+    display:none;
+  }
+  #location-banner.show{ display:block; }
+  #location-banner p{
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height:1.4;
+  }
+  #location-banner button{
+    width:100%;
+    background: var(--accent);
+    color: #1E1B18;
+    border:none;
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    cursor:pointer;
+  }
+  #location-banner.denied{ background: rgba(163,74,58,0.15); }
+  #location-banner.denied button{ background: var(--bg-raised); color: var(--text); border: 1px solid var(--line); }
+
+  #map{
+    flex-shrink:0;
+    height: 38vh;
+    min-height: 220px;
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--line);
+  }
+  .leaflet-popup-content-wrapper{
+    background: var(--bg-card);
+    color: var(--text);
+    border-radius: var(--radius);
+  }
+  .leaflet-popup-tip{ background: var(--bg-card); }
+  .leaflet-popup-content{ font-family:'Inter',sans-serif; margin: 10px 12px; }
+  .popup-save-btn{
+    margin-top:8px; width:100%;
+    background: var(--accent); color:#1E1B18; border:none;
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:0.85rem;
+    padding: 8px 10px; border-radius: var(--radius); cursor:pointer;
+  }
+
+  #action-bar{
+    flex-shrink:0;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  #gps-btn{
+    width:100%;
+    background: var(--accent);
+    color: #1E1B18;
+    border:none;
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size: 0.95rem;
+    padding: 13px 16px;
+    border-radius: var(--radius);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  #gps-btn:active{ background: var(--accent-dark); }
+  #gps-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline: 2px solid var(--steel); outline-offset:2px;
+  }
+  #gps-hint{
+    margin: 8px 2px 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align:center;
+  }
+
+  #search-bar{
+    flex-shrink:0;
+    padding: 12px 18px 0;
+  }
+  #search-input{
+    width:100%;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family:'Inter',sans-serif;
+    font-size: 0.92rem;
+    padding: 11px 14px;
+    border-radius: var(--radius);
+  }
+  #search-input::placeholder{ color: var(--text-muted); }
+
+  #list-section{
+    flex:1;
+    overflow-y:auto;
+    padding: 14px 18px 90px;
+  }
+  #list-title{
+    font-family:'Oswald', sans-serif;
+    font-size: 0.95rem;
+    font-weight:600;
+    margin: 4px 0 12px;
+    color: var(--text);
+  }
+  #list-title span{ color: var(--text-muted); font-weight:400; }
+
+  .empty-state{
+    text-align:center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 30px 10px;
+    line-height:1.5;
+  }
+
+  .place-card{
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .place-card h3{
+    margin:0 0 3px;
+    font-family:'Oswald', sans-serif;
+    font-size: 1.02rem;
+    font-weight:600;
+  }
+  .place-card .note{
+    font-size: 0.87rem;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+    line-height:1.4;
+  }
+  .place-card .date{
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .card-actions{
+    display:flex; gap:8px;
+  }
+  .card-actions a, .card-actions button{
+    flex:1;
+    text-align:center;
+    font-family:'Inter',sans-serif;
+    font-weight:500;
+    font-size: 0.82rem;
+    padding: 8px 6px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    text-decoration:none;
+    cursor:pointer;
+    background: var(--bg-raised);
+    color: var(--text);
+  }
+  .card-actions a{ color: var(--steel); border-color: var(--steel); }
+  .card-actions .delete-btn{ color: var(--danger); border-color: var(--danger); background:transparent; }
+
+  #sheet-overlay{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.55);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index: 1000;
+  }
+  #sheet-overlay.open{ display:flex; }
+  #sheet{
+    width:100%; max-width:520px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--line);
+    border-radius: 14px 14px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  }
+  #sheet h2{
+    font-family:'Oswald', sans-serif;
+    font-size:1.1rem;
+    margin: 0 0 4px;
+  }
+  #sheet .coord-line{
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+  #sheet label{
+    display:block;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 12px 0 6px;
+  }
+  #sheet input, #sheet textarea{
+    width:100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family:'Inter',sans-serif;
+    font-size: 0.95rem;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    resize: vertical;
+  }
+  #sheet-actions{
+    display:flex; gap:10px; margin-top: 18px;
+  }
+  #sheet-actions button{
+    flex:1;
+    padding: 12px;
+    border-radius: var(--radius);
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:0.9rem;
+    border:none;
+    cursor:pointer;
+  }
+  #cancel-btn{ background: var(--bg-raised); color: var(--text-muted); border:1px solid var(--line) !important; }
+  #save-btn{ background: var(--accent); color:#1E1B18; }
+
+  #toast{
+    position:fixed; bottom: 20px; left:50%; transform: translateX(-50%);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.2s ease;
+    z-index: 2000;
+  }
+  #toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>Ma <span>Tournée</span></h1>
+    <p>Vos lieux visités, retrouvables en un instant.</p>
+  </header>
+
+  <div id="location-banner">
+    <p id="location-banner-text">Autorisez la localisation pour enregistrer vos garages en un tap.</p>
+    <button id="location-banner-btn">Autoriser la localisation</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="action-bar">
+    <button id="gps-btn">📍 Enregistrer ma position actuelle</button>
+    <p id="gps-hint">Ou touchez un endroit sur la carte pour le placer manuellement.</p>
+  </div>
+
+  <div id="search-bar">
+    <input id="search-input" type="text" placeholder="Rechercher un lieu, une note…" autocomplete="off">
+  </div>
+
+  <div id="list-section">
+    <div id="list-title">Lieux enregistrés <span id="list-count">(0)</span></div>
+    <div id="list"></div>
+  </div>
+
+</div>
+
+<div id="sheet-overlay">
+  <div id="sheet">
+    <h2>Enregistrer ce lieu</h2>
+    <div class="coord-line" id="coord-line"></div>
+    <label for="place-name">Nom du garage / mécanicien</label>
+    <input id="place-name" type="text" placeholder="Ex : Garage Ouédraogo Motos" autocomplete="off">
+    <label for="place-note">Note (optionnel)</label>
+    <textarea id="place-note" rows="2" placeholder="Ex : préfère les commandes le matin"></textarea>
+    <div id="sheet-actions">
+      <button id="cancel-btn">Annuler</button>
+      <button id="save-btn">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  const STORAGE_KEY = 'garage-locations';
+  let places = [];
+  let pendingCoords = null;
+  let tempMarker = null;
+
+  function setupInstallable(){
+    const iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">'
+      + '<rect width="192" height="192" fill="#1E1B18"/>'
+      + '<path d="M96 30c22 34 46 62 46 90a46 46 0 1 1-92 0c0-28 24-56 46-90z" fill="#C8892B"/>'
+      + '</svg>';
+    const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
+    const appleLink = document.getElementById('apple-touch-icon');
+    const favLink = document.getElementById('favicon-icon');
+    if(appleLink) appleLink.href = iconUrl;
+    if(favLink) favLink.href = iconUrl;
+
+    try{
+      const manifest = {
+        name: 'Ma Tournée',
+        short_name: 'Tournée',
+        start_url: '.',
+        display: 'standalone',
+        background_color: '#1E1B18',
+        theme_color: '#1E1B18',
+        icons: [{ src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any' }]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestUrl;
+      document.head.appendChild(link);
+    }catch(e){ }
+
+    if('serviceWorker' in navigator && window.isSecureContext){
+      try{
+        const swCode = "self.addEventListener('fetch', function(){});";
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+      }catch(e){ }
+    }
+  }
+  setupInstallable();
+
+  const map = L.map('map', { zoomControl: true }).setView([12.3714, -1.5197], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  const savedMarkers = {};
+
+  function pinIcon(color){
+    return L.divIcon({
+      className: '',
+      html: '<div style="width:16px;height:16px;border-radius:50%;background:'+color+';border:2px solid #1E1B18;box-shadow:0 0 0 2px '+color+'55;"></div>',
+      iconSize: [16,16],
+      iconAnchor: [8,8]
+    });
+  }
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  async function loadPlaces(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      places = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      places = [];
+    }
+    renderList();
+    renderMarkers();
+  }
+
+  async function savePlaces(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
+    }catch(e){
+      toast("La sauvegarde a échoué, réessayez.");
+    }
+  }
+
+  function renderMarkers(){
+    Object.values(savedMarkers).forEach(m => map.removeLayer(m));
+    places.forEach(p => {
+      const marker = L.marker([p.lat, p.lng], { icon: pinIcon('#C8892B') }).addTo(map);
+      marker.bindPopup('<strong>'+escapeHtml(p.name)+'</strong>');
+      savedMarkers[p.id] = marker;
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function normalize(str){
+    return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function renderList(){
+    const listEl = document.getElementById('list');
+    document.getElementById('list-count').textContent = '('+places.length+')';
+    if(places.length === 0){
+      listEl.innerHTML = '<div class="empty-state">Aucun lieu enregistré pour l\'instant.<br>Touchez le bouton ci-dessus ou tapez sur la carte pour ajouter votre première visite.</div>';
+      return;
+    }
+    const query = normalize(document.getElementById('search-input').value.trim());
+    let filtered = places;
+    if(query){
+      filtered = places.filter(p =>
+        normalize(p.name).includes(query) || normalize(p.note || '').includes(query)
+      );
+    }
+    if(filtered.length === 0){
+      listEl.innerHTML = '<div class="empty-state">Aucun lieu ne correspond à « '+escapeHtml(document.getElementById('search-input').value.trim())+' ».</div>';
+      return;
+    }
+    const sorted = [...filtered].sort((a,b)=> b.createdAt - a.createdAt);
+    listEl.innerHTML = sorted.map(p => {
+      const date = new Date(p.createdAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+      return '<div class="place-card" data-id="'+p.id+'">'
+        + '<h3>'+escapeHtml(p.name)+'</h3>'
+        + (p.note ? '<p class="note">'+escapeHtml(p.note)+'</p>' : '')
+        + '<p class="date">Ajouté le '+date+'</p>'
+        + '<div class="card-actions">'
+        + '<a href="https://www.google.com/maps/dir/?api=1&destination='+p.lat+','+p.lng+'" target="_blank" rel="noopener">Itinéraire</a>'
+        + '<button class="center-btn">Centrer</button>'
+        + '<button class="delete-btn">Supprimer</button>'
+        + '</div></div>';
+    }).join('');
+
+    listEl.querySelectorAll('.center-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('.place-card').dataset.id;
+        const p = places.find(x => x.id === id);
+        if(p){
+          map.setView([p.lat, p.lng], 16);
+          savedMarkers[id].openPopup();
+        }
+      });
+    });
+    listEl.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.closest('.place-card').dataset.id;
+        places = places.filter(x => x.id !== id);
+        await savePlaces();
+        renderList();
+        renderMarkers();
+        toast("Lieu supprimé.");
+      });
+    });
+  }
+
+  function openSheet(lat, lng){
+    pendingCoords = { lat, lng };
+    document.getElementById('coord-line').textContent = 'Position : ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+    document.getElementById('place-name').value = '';
+    document.getElementById('place-note').value = '';
+    document.getElementById('sheet-overlay').classList.add('open');
+    setTimeout(()=> document.getElementById('place-name').focus(), 100);
+  }
+  function closeSheet(){
+    document.getElementById('sheet-overlay').classList.remove('open');
+    if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
+    pendingCoords = null;
+  }
+
+  document.getElementById('search-input').addEventListener('input', renderList);
+
+  document.getElementById('cancel-btn').addEventListener('click', closeSheet);
+  document.getElementById('sheet-overlay').addEventListener('click', (e) => {
+    if(e.target.id === 'sheet-overlay') closeSheet();
+  });
+
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const name = document.getElementById('place-name').value.trim();
+    if(!name){
+      toast("Indiquez un nom pour ce lieu.");
+      return;
+    }
+    if(!pendingCoords) return;
+    const note = document.getElementById('place-note').value.trim();
+    places.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      name, note,
+      lat: pendingCoords.lat, lng: pendingCoords.lng,
+      createdAt: Date.now()
+    });
+    await savePlaces();
+    renderList();
+    renderMarkers();
+    closeSheet();
+    toast("Lieu enregistré.");
+  });
+
+  document.getElementById('gps-btn').addEventListener('click', () => {
+    if(!navigator.geolocation){
+      toast("La géolocalisation n'est pas disponible sur cet appareil.");
+      return;
+    }
+    const btn = document.getElementById('gps-btn');
+    btn.textContent = '📍 Localisation en cours…';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        btn.textContent = '📍 Enregistrer ma position actuelle';
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 16);
+        openSheet(latitude, longitude);
+      },
+      (err) => {
+        btn.textContent = '📍 Enregistrer ma position actuelle';
+        showBanner('denied');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  map.on('click', (e) => {
+    if(tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker(e.latlng, { icon: pinIcon('#6E8B9A') }).addTo(map);
+    tempMarker.bindPopup(
+      '<div>Placer un lieu ici ?</div><button class="popup-save-btn">Enregistrer ce point</button>'
+    ).openPopup();
+    tempMarker.on('popupopen', () => {
+      const b = document.querySelector('.popup-save-btn');
+      if(b){
+        b.addEventListener('click', () => {
+          map.closePopup();
+          openSheet(e.latlng.lat, e.latlng.lng);
+        });
+      }
+    });
+  });
+
+  function showBanner(state){
+    const banner = document.getElementById('location-banner');
+    const text = document.getElementById('location-banner-text');
+    const btn = document.getElementById('location-banner-btn');
+    banner.classList.remove('denied');
+    if(state === 'denied'){
+      banner.classList.add('show', 'denied');
+      text.textContent = "Localisation refusée. Activez-la dans les réglages de votre téléphone ou de votre navigateur pour l'utiliser ici.";
+      btn.textContent = "Réessayer";
+    }else{
+      banner.classList.add('show');
+      text.textContent = "Autorisez la localisation pour enregistrer vos garages en un tap.";
+      btn.textContent = "Autoriser la localisation";
+    }
+  }
+  function hideBanner(){
+    document.getElementById('location-banner').classList.remove('show');
+  }
+
+  function requestLocation(onGranted){
+    if(!navigator.geolocation){
+      toast("La géolocalisation n'est pas disponible sur cet appareil.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        hideBanner();
+        if(onGranted) onGranted(pos);
+      },
+      (err) => {
+        showBanner('denied');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  document.getElementById('location-banner-btn').addEventListener('click', () => {
+    requestLocation((pos) => {
+      map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+    });
+  });
+
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+      if(status.state === 'granted'){
+        hideBanner();
+      }else if(status.state === 'denied'){
+        showBanner('deni
